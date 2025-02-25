@@ -139,3 +139,20 @@ def get_percent(bbox: np.ndarray) -> np.ndarray:
     angles = np.array([get_angle(b) for b in bbox])
     percent = angles / angles.sum()
     return percent
+
+
+
+def compute_score(x, y):
+    """Tính toán score(i, j) dựa trên công thức đã cho."""
+    m, n = len(x), len(y)
+    score = np.zeros((m + 1, n + 1))  # score matrix
+
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            # compute the match score
+            match_score = 1 - abs(x[i - 1] - y[j - 1]) / y[j - 1]  
+            score[i, j] = max(score[i - 1, j],
+                              score[i, j - 1], 
+                              score[i - 1, j - 1] + match_score)
+
+    return score[-1, -1]/m
