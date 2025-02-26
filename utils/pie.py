@@ -114,6 +114,8 @@ def get_triangle_flag(keypoints: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: flag bool shape (n, 3) with n is the number of keypoints, 3 is the number of points in the triangle
     """
+    
+    # case there're more than 3 keypoints
     if keypoints.shape[0] >= 3:
         t1, t2, t3 = keypoints[:3]
 
@@ -151,8 +153,10 @@ def get_triangle_flag(keypoints: np.ndarray) -> np.ndarray:
         idx = np.unravel_index(dis.argmin(), dis.shape)
         flag[i, idx[0]] = 1
         
+    # case there're less than 3 keypoints
     else: 
-        pass
+        pass 
+    
     
     return flag
 
@@ -267,7 +271,15 @@ def get_scores(image_dir: str) -> np.ndarray:
         np.ndarray: scores between ground truth and prediction.
     """
     image_paths = [os.path.join(image_dir, image_name) for image_name in os.listdir(image_dir)]
-    scores = [get_score(image_path) for image_path in image_paths]
+    scores = []
+    
+    for image_path in image_paths:
+        try:
+            score = get_score(image_path)
+            scores.append(score)
+        except:
+            scores.append(0)
+    
     return np.array(scores)
     
 
