@@ -1,114 +1,164 @@
+""" 
+Module for processing pie chart images and calculating the score between ground truth and prediction.
+"""
+
+import os
 import numpy as np
 import cv2
-from scipy.spatial.distance import pdist, squareform, cdist
+from scipy.spatial.distance import pdist, squareform, cdist 
+from ultralytics import YOLO
+
+IMAGE_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/images/test2019/"
+LABEL_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/labels/test2019/"
+MODEL_DIR = "./../training/segmentation/runs/segment/train2/weights/best.pt"
+
+# Load YOLO model
+model = YOLO(MODEL_DIR)
+
+def get_masks(image_path: str) -> np.ndarray:
+    """
+    Get predicted masks from the image by using YOLO segmentation model. 
+    
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        np.ndarray: List of masks in the image, each mask format (H, W).
+    """
+    results = model(image_path)[0]
+    masks = results.masks.data
+    masks = masks.cpu().numpy()
+    
+    return masks
+
+def get_gt_keypoints(image_path: str) -> np.ndarray:
+    """
+    Get ground truth bounding boxes from .txt file in label_path.
+
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        np.ndarray: List of bounding boxes in the image, each bbox format [[x1, y1], [x2, y2], [xc, yc]].
+    """
+    image_name = os.path.basename(image_path)
+    label_name = os.path.splitext(image_name)[0] + ".txt"
+    label_path = os.path.join(LABEL_DIR, label_name)
+
+    with open(label_path, "r") as f:
+        lines = f.readlines()
+
+    bboxs = []
+    for line in lines:
+        cat, x1, y1, x2, y2, xc, yc = map(float, line.split())
+        bboxs.append([[x1, y1], [x2, y2], [xc, yc]])
+
+    return np.array(bboxs)
 
 def get_keypoint(mask: np.ndarray) -> np.ndarray:
     """
-    Trích xuất 3 keypoints từ mask bằng cách tìm 2 điểm xa nhất và 1 điểm xa nhất đến đường nối 2 điểm đó.
+    Get 3 keypoint from mask by finding the 2 farthest points and the farthest point to the closest point between the 2 farthest points
 
     Args:
-        mask (np.ndarray): Mask từ kết quả phân đoạn của YOLO.
+        mask (np.ndarray): mask in masks result from YOLO segmentation
 
     Returns:
-        np.ndarray: Mảng (3,2) chứa 3 keypoints, hoặc None nếu không có đủ điểm hợp lệ.
+        np.ndarray: 3 keypoint [[x1, y1], [x2, y2], [x3, y3]]
     """
-    if mask is None or not isinstance(mask, np.ndarray):
-        raise ValueError("Mask đầu vào phải là một mảng numpy hợp lệ.")
-
-    # Chuyển mask sang binary (0 hoặc 255)
     binary_mask = (mask > 0).astype(np.uint8) * 255
 
-    # Tìm contours
-    contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
     
-    if not contours:
-        raise ValueError("Không tìm thấy contours trong mask.")
-
-    # Chọn contour có diện tích lớn nhất
+    if len(contours) == 0: 
+        return 
+    
     contour = max(contours, key=cv2.contourArea)
     contour = contour.squeeze()
 
-    if contour.ndim != 2 or contour.shape[0] < 3:
-        raise ValueError("Contour không hợp lệ hoặc có ít hơn 3 điểm.")
-
-    # Tính ma trận khoảng cách giữa các điểm trong contour
     dist_matrix = squareform(pdist(contour))
 
-    # Lấy hai điểm xa nhất
     idx1, idx2 = np.unravel_index(dist_matrix.argmax(), dist_matrix.shape)
-
-    # Tìm điểm xa nhất với đường nối hai điểm trên
     idx3 = np.argmax(np.min(dist_matrix[[idx1, idx2]], axis=0))
 
-    keypoints = contour[[idx1, idx2, idx3]]
+    keypoint = contour[[idx1, idx2, idx3]]
 
-    return keypoints
+    return keypoint
+
 
 def get_keypoints(masks: np.ndarray) -> np.ndarray:
     """
-    Get keypoints of triangle from masks, each keypoint box format [x1, y1, x2, y2, xc, yc] (can be shuflled but keep the x, y order)
+    Get keypoints of triangle from masks, each keypoint box format [[x1, y1], [x2, y2], [xc, yc]] (can be shuflled but keep the x, y order)
     Args:
         masks (np.ndarray): masks result from YOLO segmentation
 
     Returns:
         np.ndarray: shape (n, 6) with n is the number of mask segmented
     """
-    keypoints = np.array([get_keypoint(mask) for mask in masks])
-
-    return keypoints
+    keypoints = []
+    for mask in masks:
+        keypoint = get_keypoint(mask)
+        if keypoint is None:
+            continue
+        keypoints.append(keypoint)
+        
+    return np.array(keypoints)
+    
 
 def get_triangle_flag(keypoints: np.ndarray) -> np.ndarray:
     """
-    Get the boolean flag of the points in the triangle whether it is the center or not.
-    
+    Get the boolean flag of the points in the triangle whether it is the center or not
     Args:
-        keypoints (np.ndarray): Keypoints of the triangle, shape (n, 2).
-    
+        keypoints (np.ndarray): keypoints of the triangle
     Returns:
-        np.ndarray: Shape (n, 3), where n is the number of keypoints.
+        np.ndarray: flag bool shape (n, 3) with n is the number of keypoints, 3 is the number of points in the triangle
     """
-    if keypoints.shape[0] < 3:
-        raise ValueError(f"Error: keypoints must have at least 3 points, but got {keypoints.shape[0]}.")
+    if keypoints.shape[0] >= 3:
+        t1, t2, t3 = keypoints[:3]
 
-    t1, t2, t3 = keypoints[:3]  # Lấy 3 điểm đầu tiên
+        # find the 2 closest pairs of t1 and t2
+        dis_12 = cdist(t1, t2, metric="euclidean")
 
-    # Đảm bảo dữ liệu là 2D
-    t1, t2, t3 = np.atleast_2d(t1), np.atleast_2d(t2), np.atleast_2d(t3)
+        _ = dis_12.ravel()
 
-    # Tính khoảng cách giữa các điểm của t1 và t2
-    dis_12 = cdist(t1, t2, metric="euclidean").ravel()
+        # get the position of the first and second smallest
+        pos1, pos2 = np.argsort(_)[:2]
 
-    # Lấy chỉ số của hai khoảng cách nhỏ nhất
-    sorted_indices = np.argsort(dis_12)[:2]
-    idx1 = np.unravel_index(sorted_indices[0], (t1.shape[0], t2.shape[0]))
-    idx2 = np.unravel_index(sorted_indices[1], (t1.shape[0], t2.shape[0]))
+        # unravel it to get the index of the points
+        idx1 = np.unravel_index(pos1, dis_12.shape)
+        idx2 = np.unravel_index(pos2, dis_12.shape)
 
-    # Lấy hai cặp điểm gần nhau nhất
-    pairs1 = t1[idx1[0]], t2[idx1[1]]
-    pairs2 = t1[idx2[0]], t2[idx2[1]]
+        # get the pairs
+        idx1_x, idx1_y = idx1
+        pairs1 = t1[idx1_x], t2[idx1_y]
 
-    # Tính khoảng cách từ t3 đến các cặp điểm gần nhau
-    pairs_combined = np.vstack([pairs1, pairs2])
-    dis_3 = cdist(t3, pairs_combined, metric="euclidean")
+        idx2_x, idx2_y = idx2
+        pairs2 = t1[idx2_x], t2[idx2_y]
 
-    # Lấy điểm gần nhất với t3 làm "center"
-    idx = np.unravel_index(dis_3.argmin(), dis_3.shape)
-    point = pairs_combined[idx[1]]  # Lấy giá trị tọa độ thay vì chỉ số
+        # compare with the third triangle to find the closest point
+        dis_3 = cdist(t3, np.vstack([pairs1, pairs2]), metric="euclidean")
+        idx = np.unravel_index(dis_3.argmin(), dis_3.shape)
 
-    # Tạo mảng flag với giá trị mặc định là 0
+        # IT IS THE CENTER!!!!
+        point = t3[idx[0]]
+
     flag = np.zeros((keypoints.shape[0], 3))
-
+    # find the closest point to the center for each triangle
     for i in range(keypoints.shape[0]):
-        t = np.atleast_2d(keypoints[i])
+        t = keypoints[i]
         dis = cdist(t, point.reshape(1, -1), metric="euclidean")
         idx = np.unravel_index(dis.argmin(), dis.shape)
         flag[i, idx[0]] = 1
-
+        
+    else: 
+        pass
+    
     return flag
 
 def get_bboxs(masks: np.ndarray) -> np.ndarray:
     """
-    Get the bounding box of the masks, each bbox format [x1, y1, x2, y2, xc, yc]
+    Get the sorted bounding box of the masks, each bbox format [[x1, y1], [x2, y2], [xc, yc]]
     Args:
         masks (np.ndarray): masks result from YOLO segmentation
 
@@ -124,11 +174,12 @@ def get_bboxs(masks: np.ndarray) -> np.ndarray:
 
     return sorted_triangles
 
+
 def get_angle(bbox: np.ndarray) -> np.ndarray:
     """
     Get the angle BAC of the triangle bounding box in degree
     Args:
-        bbox (np.ndarray): bounding box of the mask, format [xA, yA, xB, yB, xc, yc]
+        bbox (np.ndarray): bounding box of the mask, format [[xA, yA], [xB, yB], [xc, yc]]
 
     Returns:
         np.ndarray: angle of the bounding box
@@ -136,16 +187,17 @@ def get_angle(bbox: np.ndarray) -> np.ndarray:
 
     vector_CA = bbox[2] - bbox[0]
     vector_CB = bbox[2] - bbox[1]
-    
+
     dot_product = np.dot(vector_CA, vector_CB)
-    
+
     norm_CA = np.linalg.norm(vector_CA)
     norm_CB = np.linalg.norm(vector_CB)
-    
+
     cos_theta = dot_product / (norm_CA * norm_CB)
     angle = np.arccos(cos_theta)
-    
+
     return np.degrees(angle)
+
 
 def get_percent(bbox: np.ndarray) -> np.ndarray:
     """
@@ -157,22 +209,84 @@ def get_percent(bbox: np.ndarray) -> np.ndarray:
         np.ndarray: percent of the bounding box
     """
     angles = np.array([get_angle(b) for b in bbox])
-    percent = angles / angles.sum()
-    return percent
+    return angles / 360
 
 
+def compute_score(ground_truth: np.ndarray, preds: np.ndarray) -> float:
+    """
+    Compute the score between ground truth and prediction of pie chart.
+    See more in the document.
 
-def compute_score(x, y):
-    """Tính toán score(i, j) dựa trên công thức đã cho."""
-    m, n = len(x), len(y)
+    Args:
+        ground_truth (np.ndarray): ground truth percentages of the pie chart.
+        preds (np.ndarray): predicted percentages of the pie chart.
+
+    Returns:
+        float: score between ground truth and prediction.
+    """
+
+    m, n = len(ground_truth), len(preds)
     score = np.zeros((m + 1, n + 1))  # score matrix
 
     for i in range(1, m + 1):
         for j in range(1, n + 1):
-            # compute the math score
-            match_score = 1 - abs(x[i - 1] - y[j - 1]) / y[j - 1]  
-            score[i, j] = max(score[i - 1, j],
-                              score[i, j - 1], 
-                              score[i - 1, j - 1] + match_score)
+            # compute the match score
+            match_score = 1 - abs(ground_truth[i - 1] - preds[j - 1]) / preds[j - 1]
+            score[i, j] = max(
+                score[i - 1, j], score[i, j - 1], score[i - 1, j - 1] + match_score
+            )
 
-    return score[-1, -1]/m
+    return score[-1, -1] / m
+
+def get_score(image_path: str) -> float:
+    """
+    Get the score between ground truth and prediction of pie chart.
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        float: score between ground truth and prediction.
+    """
+    gt_bboxs = get_gt_keypoints(image_path)
+    gt_percent = get_percent(gt_bboxs)
+
+    masks = get_masks(image_path)
+    bboxs = get_bboxs(masks)
+    percent = get_percent(bboxs)
+
+    score = compute_score(gt_percent, percent)
+    return score
+
+def get_scores(image_dir: str) -> np.ndarray:
+    """
+    Get the scores between ground truth and prediction of pie chart in the image directory.
+    Args:
+        image_dir (str): Path to the image directory.
+
+    Returns:
+        np.ndarray: scores between ground truth and prediction.
+    """
+    image_paths = [os.path.join(image_dir, image_name) for image_name in os.listdir(image_dir)]
+    scores = [get_score(image_path) for image_path in image_paths]
+    return np.array(scores)
+    
+
+if __name__ == "__main__":
+    image_path = "./../assets/dataset/test/piedata(1008)/pie/images/test2019/f447ffede2ef85e73a191f8c1ed3f9df_c3RhdGxpbmtzLm9lY2Rjb2RlLm9yZwk5Mi4yNDMuMjMuMTM3.XLS-0-0.png"
+
+    print("Ground truth percentage:")
+    gt_bboxs = get_gt_keypoints(image_path)
+    gt_percent = get_percent(gt_bboxs)
+    print(sorted(gt_percent))
+    
+    print("Predicted percentage:")
+    masks = get_masks(image_path)
+    bboxs = get_bboxs(masks)
+    percent = get_percent(bboxs)
+    print(sorted(percent))
+
+    score = compute_score(gt_percent, percent)
+    print("Score:", score)
+    
+    scores = get_scores(IMAGE_DIR)
+    print("Scores:", scores)
