@@ -26,9 +26,12 @@ def get_masks(image_path: str) -> np.ndarray:
         np.ndarray: List of masks in the image, each mask format (H, W).
     """
     results = model(image_path)[0]
-    masks = results.masks.data
-    masks = masks.cpu().numpy()
     
+    if not results.masks:  
+        return np.array([])
+    
+    masks = results.masks.data 
+    masks = masks.cpu().numpy()
     return masks
 
 def get_gt_keypoints(image_path: str) -> np.ndarray:
