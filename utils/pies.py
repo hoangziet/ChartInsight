@@ -10,7 +10,7 @@ from ultralytics import YOLO
 
 IMAGE_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/images/test2019/"
 LABEL_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/labels/test2019/"
-MODEL_DIR = "./../training/segmentation/runs/segment/train2/weights/best.pt"
+MODEL_DIR = "./../models/segmentation/best.pt"
 
 # Load YOLO model
 model = YOLO(MODEL_DIR)

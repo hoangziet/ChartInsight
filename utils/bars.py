@@ -11,8 +11,8 @@ from typing import List, Dict, Union, Tuple
 # Define paths and models
 IMAGE_DIR = "./../assets/dataset/reduced_data/bardata(1031)/bar/images/test2019"
 LABEL_DIR = "./../assets/dataset/reduced_data/bardata(1031)/bar/labels/test2019"
-OBJECT_DETECTION_MODEL_DIR = "./../training/object_detection/runs/detect/train/weights/best.pt"
-BAR_DETECTION_DIR = "./../training/bar_detection/runs/detect/train/weights/best.pt"
+OBJECT_DETECTION_MODEL_DIR = "./../models/object_detection/best.pt"
+BAR_DETECTION_DIR = "./../models/bar_detection/best.pt"
 
 # Load models
 od_model = YOLO(OBJECT_DETECTION_MODEL_DIR)
