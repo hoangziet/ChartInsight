@@ -1,7 +1,7 @@
 """ 
 Module for processing pie chart images and calculating the score between ground truth and prediction.
 """
-
+import pandas as pd
 import os
 import numpy as np
 import cv2
@@ -15,6 +15,8 @@ MODEL_DIR = "./../models/segmentation/best.pt"
 # Load YOLO model
 model = YOLO(MODEL_DIR)
 
+
+## PROCESSING PIE CHART
 def get_masks(image_path: str) -> np.ndarray:
     """
     Get predicted masks from the image by using YOLO segmentation model. 
@@ -163,7 +165,7 @@ def get_triangle_flag(keypoints: np.ndarray) -> np.ndarray:
     
     return flag
 
-def get_bboxs(masks: np.ndarray) -> np.ndarray:
+def mask_to_bboxs(masks: np.ndarray) -> np.ndarray:
     """
     Get the sorted bounding box of the masks, each bbox format [[x1, y1], [x2, y2], [xc, yc]]
     Args:
@@ -182,7 +184,7 @@ def get_bboxs(masks: np.ndarray) -> np.ndarray:
     return sorted_triangles
 
 
-def get_angle(bbox: np.ndarray) -> np.ndarray:
+def bbox_to_angle(bbox: np.ndarray) -> np.ndarray:
     """
     Get the angle BAC of the triangle bounding box in degree
     Args:
@@ -206,7 +208,7 @@ def get_angle(bbox: np.ndarray) -> np.ndarray:
     return np.degrees(angle)
 
 
-def get_percent(bbox: np.ndarray) -> np.ndarray:
+def bbox_to_percent(bbox: np.ndarray) -> np.ndarray:
     """
     Get the percent of the arc in the pie chart.
     Args:
@@ -215,10 +217,40 @@ def get_percent(bbox: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: percent of the bounding box
     """
-    angles = np.array([get_angle(b) for b in bbox])
+    angles = np.array([bbox_to_angle(b) for b in bbox])
     return angles / 360
 
+def predict(image_path: str) -> np.ndarray:
+    """
+    Predict the percentage of the pie chart in the image.
+    Args:
+        image_path (str): Path to the image file.
 
+    Returns:
+        np.ndarray: predicted percentages of the pie chart.
+    """
+    masks = get_masks(image_path)
+    bboxs = mask_to_bboxs(masks)
+    percent = bbox_to_percent(bboxs)
+    return percent
+
+def to_dataframe(image_path: str) -> pd.DataFrame:
+    """
+    Return dataframe of pie chart data from image.
+
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        pd.DataFrame [section_i, percentage_i]: dataframe of pie chart data.
+    """
+    
+    percent = predict(image_path)
+    df = pd.DataFrame({"section": range(1, len(percent) + 1), "percentage": percent})
+    return df
+    
+    
+## COMPUTE SCORE
 def compute_score(ground_truth: np.ndarray, preds: np.ndarray) -> float:
     """
     Compute the score between ground truth and prediction of pie chart.
@@ -255,11 +287,11 @@ def get_score(image_path: str) -> float:
         float: score between ground truth and prediction.
     """
     gt_bboxs = get_gt_keypoints(image_path)
-    gt_percent = get_percent(gt_bboxs)
+    gt_percent = bbox_to_percent(gt_bboxs)
 
     masks = get_masks(image_path)
-    bboxs = get_bboxs(masks)
-    percent = get_percent(bboxs)
+    bboxs = mask_to_bboxs(masks)
+    percent = bbox_to_percent(bboxs)
 
     score = compute_score(gt_percent, percent)
     return score
@@ -291,13 +323,13 @@ if __name__ == "__main__":
 
     print("Ground truth percentage:")
     gt_bboxs = get_gt_keypoints(image_path)
-    gt_percent = get_percent(gt_bboxs)
+    gt_percent = bbox_to_percent(gt_bboxs)
     print(sorted(gt_percent))
     
     print("Predicted percentage:")
     masks = get_masks(image_path)
-    bboxs = get_bboxs(masks)
-    percent = get_percent(bboxs)
+    bboxs = mask_to_bboxs(masks)
+    percent = bbox_to_percent(bboxs)
     print(sorted(percent))
 
     score = compute_score(gt_percent, percent)

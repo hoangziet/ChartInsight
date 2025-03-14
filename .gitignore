@@ -2,4 +2,6 @@
 /assets/dataset/origin_files/*
 /assets/dataset/reduced_data/*
 /assets/model/
+/training
+/testing
 !.gitkeep

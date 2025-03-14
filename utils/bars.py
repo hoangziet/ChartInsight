@@ -1,10 +1,12 @@
 import os
 import re
 import numpy as np
+import pandas as pd 
 import cv2
 from paddleocr import PaddleOCR
 from ultralytics import YOLO
 import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 from scipy.optimize import linear_sum_assignment
 from typing import List, Dict, Union, Tuple
 
@@ -362,3 +364,71 @@ def get_bar_values(plot_area: np.ndarray) -> List[Dict]:
             })
 
     return bar_data
+
+
+def plot_predict(image_path: str):
+    """
+    Plot the bar chart with the predicted values.
+
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        None
+    """
+    plot_area = get_plot_area(image_path)
+    bar_info = get_bar_values(plot_area)
+    
+    for info in bar_info: 
+        x1, y1, x2, y2 = map(int, info['bbox'])
+
+        cv2.rectangle(plot_area, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+        text_x = x1
+        text_y = y1 - 10 
+
+        cv2.putText(plot_area, info['label'], (text_x, text_y - 15),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
+
+        value_text = f"{info['value']:.2f}"
+        cv2.putText(plot_area, value_text, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
+
+    plt.figure(figsize=(10, 8))
+    plt.imshow(plot_area)
+    plt.show()
+    
+    
+def to_dataframe(image_path: str) -> pd.DataFrame:
+    """
+    Return dataframe of bar chart data from image.
+
+    Args:
+        image_path (str): Path to the image file.
+
+    Returns:
+        pd.DataFrame [label, color, value, x, y, w, h]
+    """
+    plot_area = get_plot_area(image_path)
+    if plot_area is None:
+        print("[DEBUG] No plot area found!")
+        return pd.DataFrame()
+
+    bar_data = get_bar_values(plot_area)
+    if not bar_data:
+        print("[DEBUG] No bar data found!")
+        return pd.DataFrame()
+
+    df = pd.DataFrame(bar_data)
+    
+    # get coordinates
+    df["x1"] = df["bbox"].apply(lambda x: x[0])
+    df["y1"] = df["bbox"].apply(lambda x: x[1])
+    df["x2"] = df["bbox"].apply(lambda x: x[2])
+    df["y2"] = df["bbox"].apply(lambda x: x[3])
+    df = df.drop(columns=["bbox"])
+    
+    # reorder columns
+    df = df[['label', 'color', 'value', 'x1', 'y1', 'x2', 'y2']]
+    
+    return df
