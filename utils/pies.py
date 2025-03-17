@@ -8,13 +8,11 @@ import cv2
 from scipy.spatial.distance import pdist, squareform, cdist 
 from ultralytics import YOLO
 
-IMAGE_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/images/test2019/"
-LABEL_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/labels/test2019/"
-MODEL_DIR = "./../models/segmentation/best.pt"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGE_SEGMENTATION_MODEL_DIR = os.path.join(BASE_DIR, "../models/segmentation/best.pt")
 
 # Load YOLO model
-model = YOLO(MODEL_DIR)
-
+model = YOLO(IMAGE_SEGMENTATION_MODEL_DIR)
 
 ## PROCESSING PIE CHART
 def get_masks(image_path: str) -> np.ndarray:
@@ -218,7 +216,9 @@ def bbox_to_percent(bbox: np.ndarray) -> np.ndarray:
         np.ndarray: percent of the bounding box
     """
     angles = np.array([bbox_to_angle(b) for b in bbox])
-    return angles / 360
+    percent = angles / angles.sum() * 100
+    percent = np.round(percent, 2)
+    return percent
 
 def predict(image_path: str) -> np.ndarray:
     """
@@ -335,5 +335,5 @@ if __name__ == "__main__":
     score = compute_score(gt_percent, percent)
     print("Score:", score)
     
-    scores = get_scores(IMAGE_DIR)
+    scores = get_scores(image_path)
     print("Scores:", scores)

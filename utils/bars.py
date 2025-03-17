@@ -10,11 +10,9 @@ import matplotlib.pyplot as plt
 from scipy.optimize import linear_sum_assignment
 from typing import List, Dict, Union, Tuple
 
-# Define paths and models
-IMAGE_DIR = "./../assets/dataset/reduced_data/bardata(1031)/bar/images/test2019"
-LABEL_DIR = "./../assets/dataset/reduced_data/bardata(1031)/bar/labels/test2019"
-OBJECT_DETECTION_MODEL_DIR = "./../models/object_detection/best.pt"
-BAR_DETECTION_DIR = "./../models/bar_detection/best.pt"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OBJECT_DETECTION_MODEL_DIR = os.path.join(BASE_DIR, "../models/object_detection/best.pt")
+BAR_DETECTION_DIR = os.path.join(BASE_DIR, "../models/bar_detection/best.pt")
 
 # Load models
 od_model = YOLO(OBJECT_DETECTION_MODEL_DIR)
@@ -432,3 +430,10 @@ def to_dataframe(image_path: str) -> pd.DataFrame:
     df = df[['label', 'color', 'value', 'x1', 'y1', 'x2', 'y2']]
     
     return df
+
+
+## TEST 
+if __name__ == "__main__":
+    image_path = "./../static/uploads/0.png"
+    
+    print(to_dataframe(image_path))

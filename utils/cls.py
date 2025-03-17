@@ -3,9 +3,8 @@ import numpy as np
 import cv2 
 import os 
 
-IMAGE_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/images/test2019/"
-LABEL_DIR = "./../assets/dataset/reduced_data/piedata(1008)/pie/labels/test2019/"
-MODEL_DIR = "./../models/classification/chart_cls.keras"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, "../models/classification/chart_cls.keras")
 
 # Load classification model
 model = load_model(MODEL_DIR)
