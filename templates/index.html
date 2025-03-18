@@ -43,7 +43,7 @@
                     {% for item in char_info %}
                     <tr>
                         <td>{{ item.label }}</td>
-                        <td>{{ item.color}}</td>
+                        <td style="background-color: {{ item.color }}; width: 50px; height: 20px;"></td>
                         <td>{{ item.value}}</td>
                     </tr>
                     {% endfor %}
