@@ -1,11 +1,13 @@
 #  ChartInsight  
+![](https://media.discordapp.net/attachments/1326480293980405791/1351584869842681876/image.png?ex=67dae900&is=67d99780&hm=842573bb2fbd9716346de97da7149e7a0c2b230f90fb3dd9a6a34ba3e2cd5b5f&=&format=webp&quality=lossless&width=1786&height=856)
 
 A web application that allows users to upload a chart, identify its type, extract values.  
 
 ## Features  
 - Upload a chart as an image (PNG, JPG)  
 - Detect chart types (pie, bar, line)  
-- Extract data from charts  
+- Extract data from charts
+
 
 ##  Installation  
 ###  Clone the repository  
