@@ -353,7 +353,8 @@ def get_bar_values(plot_area: np.ndarray) -> List[Dict]:
         group_color = get_average_color(plot_area, union_bbox)
 
         for bar in cluster:
-            bar_value = (bar[3] - bar[1]) * y_scale
+            bar_value = (float(bar[3]) - float(bar[1])) * float(y_scale)
+            bar_value = round(bar_value, 2)
             bar_data.append({
                 'bbox': bar[:4],
                 'label': label_text,
