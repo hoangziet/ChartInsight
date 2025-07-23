@@ -1,7 +1,7 @@
 #  ChartInsight  
-![](https://media.discordapp.net/attachments/1326480293980405791/1351584869842681876/image.png?ex=67dae900&is=67d99780&hm=842573bb2fbd9716346de97da7149e7a0c2b230f90fb3dd9a6a34ba3e2cd5b5f&=&format=webp&quality=lossless&width=1786&height=856)
 
 A web application that allows users to upload a chart, identify its type, extract values.  
+![](./demo.png)
 
 ## Features  
 - Upload a chart as an image (PNG, JPG)  
@@ -73,7 +73,5 @@ This project is licensed under the MIT License.
 ##  References  
 This work is based on:  
 1. Liu, Xiaoyi, Klabjan, Diego, & Bless, Patrick N. (2019). *Data Extraction from Charts via Single Deep Neural Network*. arXiv preprint arXiv:1906.11906. [DOI](https://doi.org/10.48550/arXiv.1906.11906).  
-2. [Using Hourglass Networks To Understand Human Poses](https://medium.com/towards-data-science/using-hourglass-networks-to-understand-human-poses-1e40e349fa15)  
-3. [deep-vision / Hourglass](https://github.com/ethanyanjiali/deep-vision/tree/master/Hourglass)
 
    
