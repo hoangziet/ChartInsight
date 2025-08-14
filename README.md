@@ -1,4 +1,4 @@
-#  ChartInsight  
+#  ChartInsight  (under maintenance)
 
 A web application that allows users to upload a chart, identify its type, extract values.  
 ![](./demo.png)
